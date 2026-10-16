@@ -65,7 +65,7 @@ jobs:
           echo "debug.keystore successfully verified."
 
       - name: Build Debug APK
-        run: gradle assembleDebug
+        run: gradle assembleDebug --stacktrace --no-daemon
 
       - name: Verify APK existence and size
         run: |
@@ -84,18 +84,61 @@ jobs:
       - name: Upload APK as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Create GitHub Release and Upload APK
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: latest
-          name: "Maya App Debug APK (Latest)"
-          body: "Automated build of Maya App debug APK generated via GitHub Actions."
-          files: app/build/outputs/apk/debug/app-debug.apk
-          prerelease: false
-          draft: false
-          fail_on_unmatched_files: true
+      - name: Prepare APK release asset
+        id: prep_asset
+        run: |
+          RUN_NUM="${{ github.run_number }}"
+          RUN_ATT="${{ github.run_attempt }}"
+          TAG="debug-apk-build-${RUN_NUM}-${RUN_ATT}"
+          echo "RELEASE_TAG=$TAG" >> $GITHUB_OUTPUT
+          
+          ASSET_DIR="release_asset_dir"
+          mkdir -p "$ASSET_DIR"
+          cp app/build/outputs/apk/debug/app-debug.apk "$ASSET_DIR/app-debug.apk"
+          echo "asset_path=$ASSET_DIR/app-debug.apk" >> $GITHUB_OUTPUT
+
+      - name: Publish APK to GitHub Releases
+        id: publish_release
+        continue-on-error: true
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Checking GitHub CLI..."
+          gh --version
+          
+          TAG="${{ steps.prep_asset.outputs.RELEASE_TAG }}"
+          ASSET="${{ steps.prep_asset.outputs.asset_path }}"
+          
+          if [ ! -f "$ASSET" ]; then
+            echo "Error: Release asset not found at $ASSET"
+            exit 1
+          fi
+          
+          echo "Creating GitHub Release with tag $TAG..."
+          gh release create "$TAG" \
+            --title "Debug APK Build #${{ github.run_number }}" \
+            --notes "Automated build of Maya App debug APK generated via GitHub Actions.
+            - Run Number: ${{ github.run_number }}
+            - Run Attempt: ${{ github.run_attempt }}
+            - Commit SHA: ${{ github.sha }}
+            - Signed with temporary debug keystore." \
+            --latest \
+            "$ASSET#app-debug.apk"
+
+      - name: Report APK download result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "=== APK BUILD & RELEASE STATUS ==-"
+          if [ "${{ steps.publish_release.outcome }}" == "success" ]; then
+            echo "SUCCESS: GitHub Release published successfully!"
+            gh release view "${{ steps.prep_asset.outputs.RELEASE_TAG }}"
+            echo "DIRECT APK DOWNLOAD:"
+            echo "https://github.com/${{ github.repository }}/releases/latest/download/app-debug.apk"
+          else
+            echo "WARNING: GitHub Release publishing failed or skipped, but Actions artifact app-debug-apk is available."
+          fi
