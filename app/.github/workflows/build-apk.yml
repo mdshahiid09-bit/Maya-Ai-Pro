@@ -117,7 +117,11 @@ jobs:
             exit 1
           fi
           
-          echo "Creating GitHub Release with tag $TAG..."
+          echo "Deleting existing tag/release if present..."
+          gh release delete "$TAG" --yes || true
+          git push origin --delete "$TAG" || true
+          
+          echo "Creating GitHub Release with tag $TAG and attaching APK..."
           gh release create "$TAG" \
             --title "Debug APK Build #${{ github.run_number }}" \
             --notes "Automated build of Maya App debug APK generated via GitHub Actions.
