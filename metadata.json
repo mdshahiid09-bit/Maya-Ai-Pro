@@ -1,0 +1,6 @@
+{
+  "name": "Maya",
+  "description": "Maya is an advanced voice AI assistant and phone-control agent powered by Gemini Live API with Jarvis & Girlfriend personas, offline wake word, device automation, and local memory.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

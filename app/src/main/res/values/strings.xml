@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Maya</string>
+    <string name="accessibility_service_desc">Enables Maya to assist you with automated phone navigation, screen reading, reading notifications, and app controls upon voice command.</string>
+</resources>
